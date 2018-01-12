@@ -6,15 +6,14 @@
 #endif
 
 CAFFE2_DEFINE_string(optimizer, "adam",
-                     "Training optimizer: sgd/momentum/adagrad/adam");
-CAFFE2_DEFINE_string(device, "cudnn", "Computation device: cpu/cuda/cudnn");
+                     "Training optimizer: sgd|momentum|adagrad|adam");
+CAFFE2_DEFINE_string(device, "cudnn", "Computation device: cpu|cuda|cudnn");
 CAFFE2_DEFINE_bool(dump_model, false, "output dream model.");
 
 static const std::set<std::string> device_types({"cpu", "cuda", "cudnn"});
 static const std::set<std::string> optimizer_types({"sgd", "momentum",
                                                     "adagrad", "adam",
                                                     "rmsprop"});
-
 namespace caffe2 {
 
 bool cmd_setup_cuda() {

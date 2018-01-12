@@ -57,22 +57,17 @@ void run() {
     return;
   }
 
-  // detect classes if specified
   if (!std::ifstream(FLAGS_classes).good()) {
     std::cerr << "error: Class file invalid: " << FLAGS_classes << std::endl;
     return;
   }
 
-  auto cuda = (FLAGS_device != "cpu" && cmd_setup_cuda());
-
+  bool cuda = (FLAGS_device != "cpu" && cmd_setup_cuda());
   std::cout << "model: " << FLAGS_model << std::endl;
   std::cout << "file: " << FLAGS_file << std::endl;
   std::cout << "size: " << FLAGS_size << std::endl;
   std::cout << "device: " << FLAGS_device << std::endl;
-  std::cout << "using cuda: " << (cuda ? "true" : "false") << std::endl;
-  ;
-
-  std::cout << std::endl;
+  std::cout << "using cuda: " << (cuda ? "true\n" : "false\n") << std::endl;
 
   // read image as tensor
   TensorCPU input;
