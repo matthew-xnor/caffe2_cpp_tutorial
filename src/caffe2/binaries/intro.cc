@@ -8,7 +8,7 @@ void print(const Blob* blob, const std::string& name) {
   auto tensor = blob->Get<TensorCPU>();
   const auto& data = tensor.data<float>();
   std::cout << name << "(" << tensor.dims()
-            << "): " << std::vector<float>(data, data + tensor.size())
+            << "): [" << std::vector<float>(data, data + tensor.size()) << ']'
             << std::endl;
 }
 
@@ -33,10 +33,10 @@ void run() {
 
   // >>> workspace.FeedBlob("my_x", x)
   {
-    auto tensor = workspace.CreateBlob("my_x")->GetMutable<TensorCPU>();
+    auto my_x_tensor = workspace.CreateBlob("my_x")->GetMutable<TensorCPU>();
     auto value = TensorCPU({4, 3, 2}, x, NULL);
-    tensor->ResizeLike(value);
-    tensor->ShareData(value);
+    my_x_tensor->ResizeLike(value);
+    my_x_tensor->ShareData(value);
   }
 
   // >>> x2 = workspace.FetchBlob("my_x")
@@ -60,18 +60,18 @@ void run() {
 
   // >>> workspace.FeedBlob("data", data)
   {
-    auto tensor = workspace.CreateBlob("data")->GetMutable<TensorCPU>();
+    auto data_tensor = workspace.CreateBlob("data")->GetMutable<TensorCPU>();
     auto value = TensorCPU({16, 100}, data, NULL);
-    tensor->ResizeLike(value);
-    tensor->ShareData(value);
+    data_tensor->ResizeLike(value);
+    data_tensor->ShareData(value);
   }
 
   // >>> workspace.FeedBlob("label", label)
   {
-    auto tensor = workspace.CreateBlob("label")->GetMutable<TensorCPU>();
+    auto label_tensor = workspace.CreateBlob("label")->GetMutable<TensorCPU>();
     auto value = TensorCPU({16}, label, NULL);
-    tensor->ResizeLike(value);
-    tensor->ShareData(value);
+    label_tensor->ResizeLike(value);
+    label_tensor->ShareData(value);
   }
 
   // >>> m = model_helper.ModelHelper(name="my first net")
@@ -159,64 +159,49 @@ void run() {
   }
 
   // >>> print(str(m.net.Proto()))
-  // std::cout << std::endl;
-  // print(predictModel);
-
   // >>> print(str(m.param_init_net.Proto()))
-  // std::cout << std::endl;
-  // print(initModel);
+  std::cout << predictModel.ShortDebugString() << "--------" << std::endl;
+  std::cout <<    initModel.ShortDebugString() << "--------" << std::endl;
 
   // >>> workspace.RunNetOnce(m.param_init_net)
-  CAFFE_ENFORCE(workspace.RunNetOnce(initModel));
-
   // >>> workspace.CreateNet(m.net)
+  CAFFE_ENFORCE(workspace.RunNetOnce(initModel));
   CAFFE_ENFORCE(workspace.CreateNet(predictModel));
 
   // >>> for j in range(0, 100):
+  //       data = np.random.rand(16, 100).astype(np.float32)
+  //       workspace.FeedBlob("data", data)
+  //       label = (np.random.rand(16) * 10).astype(np.int32)
+  //       workspace.FeedBlob("label", label)
+  //       workspace.RunNet(m.name, 10)   # run for 10 times
   for (auto i = 0; i < 100; i++) {
-    // >>> data = np.random.rand(16, 100).astype(np.float32)
     std::vector<float> data(16 * 100);
-    for (auto& v : data) {
-      v = (float)rand() / RAND_MAX;
-    }
-
-    // >>> label = (np.random.rand(16) * 10).astype(np.int32)
-    std::vector<int> label(16);
-    for (auto& v : label) {
-      v = 10 * rand() / RAND_MAX;
-    }
-
-    // >>> workspace.FeedBlob("data", data)
-    {
-      auto tensor = workspace.GetBlob("data")->GetMutable<TensorCPU>();
+    for (auto& v : data) { v = (float)rand() / RAND_MAX;  }
+    { auto data_tensor = workspace.GetBlob("data")->GetMutable<TensorCPU>();
       auto value = TensorCPU({16, 100}, data, NULL);
-      tensor->ShareData(value);
+      data_tensor->ShareData(value);
     }
 
-    // >>> workspace.FeedBlob("label", label)
-    {
-      auto tensor = workspace.GetBlob("label")->GetMutable<TensorCPU>();
+    std::vector<int> label(16);
+    for (auto& v : label) { v = 10 * rand() / RAND_MAX; }
+    { auto label_tensor = workspace.GetBlob("label")->GetMutable<TensorCPU>();
       auto value = TensorCPU({16}, label, NULL);
-      tensor->ShareData(value);
+      label_tensor->ShareData(value);
     }
 
-    // >>> workspace.RunNet(m.name, 10)   # run for 10 times
     for (auto j = 0; j < 10; j++) {
       CAFFE_ENFORCE(workspace.RunNet(predictModel.name()));
-      // std::cout << "step: " << i << " loss: ";
-      // print(*(workspace.GetBlob("loss")));
-      // std::cout << std::endl;
+    }
+    if ((i + 1) % 10 == 0) {
+      std::cout << "step: " << std::setw(2) << i << ": ";
+      print(workspace.GetBlob("loss"), "loss");
     }
   }
-
   std::cout << std::endl;
 
   // >>> print(workspace.FetchBlob("softmax"))
-  print(workspace.GetBlob("softmax"), "softmax");
-
-  std::cout << std::endl;
-
   // >>> print(workspace.FetchBlob("loss"))
+  print(workspace.GetBlob("softmax"), "softmax");
   print(workspace.GetBlob("loss"), "loss");
 }
 

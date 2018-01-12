@@ -23,7 +23,8 @@ find_library(CAFFE2_GPU_LIB caffe2_gpu)
 find_library(GLOG_LIB glog)
 find_library(GFLAGS_LIB gflags)
 find_library(GTEST_LIB gtest)
-find_library(NCCL_LIB nccl) # Somehow necessary to prevent "undefined reference to `ncclReduceScatter'"
+set(NCCL_LIB /usr/local/src/caffe2/third_party/nccl/build/lib/libnccl.so)
+#find_library(NCCL_LIB nccl) # Somehow necessary to prevent "undefined reference to `ncclReduceScatter'"
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC ")
 

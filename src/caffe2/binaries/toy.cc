@@ -8,7 +8,7 @@ void print(const Blob *blob, const std::string &name) {
   auto tensor = blob->Get<TensorCPU>();
   const auto &data = tensor.data<float>();
   std::cout << name << "(" << tensor.dims()
-            << "): " << std::vector<float>(data, data + tensor.size())
+            << "): [" << std::vector<float>(data, data + tensor.size()) << ']'
             << std::endl;
 }
 
@@ -19,16 +19,55 @@ void run() {
             << std::endl;
   std::cout << std::endl;
 
+
+  // # Tutorial 2. A Simple Toy Regression
+  //
+  // This is a quick example showing how one can use the concepts introduced in
+  // Tutorial 1 (Basics) to do a quick toy regression.
+  //
+  // The problem we are dealing with is a very simple one, with two-dimensional
+  // input `x` and one-dimensional output `y`, and a weight vector `w=[2.0,
+  // 1.5]` and bias `b=0.5`. The equation to generate ground truth is:
+  //
+  // ```y = wx + b```
+  //
+  // For this tutorial, we will be generating training data using Caffe2
+  // operators as well. Note that this is usually not the case in your daily
+  // training jobs: in a real training scenario data is usually loaded from an
+  // external source, such as a Caffe DB (i.e. a key-value storage) or a Hive
+  // table. We will cover this in the MNIST tutorial.
+  //
+  // We will write out every piece of math in Caffe2 operators. This is often an
+  // overkill if your algorithm is relatively standard, such as CNN models. In
+  // the MNIST tutorial, we will show how to use the CNN model helper to more
+  // easily construct CNN models.
+
   // >>> from caffe2.python import core, cnn, net_drawer, workspace, visualize
   Workspace workspace;
+
+
+  // ## Declaring the computation graphs
+  //
+  // There are two graphs that we declare: one is used to initialize the various
+  // parameters and constants that we are going to use in the computation, and
+  // another main graph that is used to run stochastic gradient descent.
+  //
+  // First, the init net: note that the name does not matter, we basically want
+  // to put the initialization code in one net so we can then call RunNetOnce()
+  // to execute it. The reason we have a separate init_net is that, these
+  // operators do not need to run more than once for the whole training
+  // procedure.
 
   // >>> init_net = core.Net("init")
   NetDef initModel;
   initModel.set_name("init");
 
   // >>> W_gt = init_net.GivenTensorFill([], "W_gt", shape=[1, 2],
-  // values=[2.0, 1.5])
+  //                                     values=[2.0, 1.5])
   {
+    // NetUtil init_model_util(initModel);
+    // init_model_util.AddGivenTensorFillOp(TensorCPU({1, 2}, {2.0, 5.0},
+    //                                                nullptr), "W_gt");
     auto op = initModel.add_op();
     op->set_type("GivenTensorFill");
     auto arg1 = op->add_arg();
@@ -115,14 +154,14 @@ void run() {
     op->add_output("B");
   }
 
-  // print(initModel);
+  std::cout << initModel.DebugString() << "--------" << std::endl;
 
   // >>> train_net = core.Net("train")
   NetDef trainModel;
   trainModel.set_name("train");
 
   // >>> X = train_net.GaussianFill([], "X", shape=[64, 2], mean=0.0, std=1.0,
-  // run_once=0)
+  //                                run_once=0)
   {
     auto op = trainModel.add_op();
     op->set_type("GaussianFill");
@@ -254,7 +293,7 @@ void run() {
   }
 
   // >>> LR = train_net.LearningRate(ITER, "LR", base_lr=-0.1, policy="step",
-  // stepsize=20, gamma=0.9)
+  //                                 stepsize=20, gamma=0.9)
   {
     auto op = trainModel.add_op();
     op->set_type("LearningRate");
@@ -297,44 +336,41 @@ void run() {
   }
 
   // print(trainModel);
+  std::cout << trainModel.DebugString() << "--------" << std::endl;
 
   // >>> workspace.RunNetOnce(init_net)
-  CAFFE_ENFORCE(workspace.RunNetOnce(initModel));
-
   // >>> workspace.CreateNet(train_net)
+  CAFFE_ENFORCE(workspace.RunNetOnce(initModel));
   CAFFE_ENFORCE(workspace.CreateNet(trainModel));
 
   // >>> print("Before training, W is: {}".format(workspace.FetchBlob("W")))
-  print(workspace.GetBlob("W"), "W before");
-
   // >>> print("Before training, B is: {}".format(workspace.FetchBlob("B")))
-  print(workspace.GetBlob("B"), "B before");
+  print(workspace.GetBlob("W"), "Before, W");
+  print(workspace.GetBlob("B"), "Before, B");
 
   // >>> for i in range(100):
-  for (auto i = 1; i <= 100; i++) {
-    // >>> workspace.RunNet(train_net.Proto().name)
+  //         workspace.RunNet(train_net.Proto().name)
+  for (auto i = 1; i <= 10000; i++) {
     CAFFE_ENFORCE(workspace.RunNet(trainModel.name()));
-
-    if (i % 10 == 0) {
+    if ((i + 1) % 1000 == 0 || i == 1) {
       float w = workspace.GetBlob("W")->Get<TensorCPU>().data<float>()[0];
       float b = workspace.GetBlob("B")->Get<TensorCPU>().data<float>()[0];
       float loss = workspace.GetBlob("loss")->Get<TensorCPU>().data<float>()[0];
-      std::cout << "step: " << i << " W: " << w << " B: " << b
-                << " loss: " << loss << std::endl;
+      std::cout << "    step: " << std::setw(4) << i
+                << ", W: " << std::setw(9) << w
+                << " B: " << b << " loss: " << loss << std::endl;
     }
   }
 
   // >>> print("After training, W is: {}".format(workspace.FetchBlob("W")))
-  print(workspace.GetBlob("W"), "W after");
-
   // >>> print("After training, B is: {}".format(workspace.FetchBlob("B")))
-  print(workspace.GetBlob("B"), "B after");
+  print(workspace.GetBlob("W"), "After, W");
+  print(workspace.GetBlob("B"), "After, B");
 
   // >>> print("Ground truth W is: {}".format(workspace.FetchBlob("W_gt")))
-  print(workspace.GetBlob("W_gt"), "W ground truth");
-
   // >>> print("Ground truth B is: {}".format(workspace.FetchBlob("B_gt")))
-  print(workspace.GetBlob("B_gt"), "B ground truth");
+  print(workspace.GetBlob("W_gt"), "ground truth W");
+  print(workspace.GetBlob("B_gt"), "ground truth B");
 }
 
 }  // namespace caffe2
