@@ -1,1 +1,3 @@
 Lorem ipsum blah blah blah.
+Fix #1
+Fix #2.
