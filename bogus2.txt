@@ -1,3 +1,5 @@
 Lorem ipsum blah blah blah.
 Fix #1
 Fix #2.
+
+And Fixes #3 and 4.
